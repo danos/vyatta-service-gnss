@@ -1,0 +1,5 @@
+bin/vyatta-gnssd opt/vyatta/sbin
+bin/vyatta-gnss-op opt/vyatta/bin
+bin/vyatta-gnss-util opt/vyatta/bin
+lib/vyatta/gnss-plugins/DummyGNSS.py usr/lib/python3/dist-packages/vyatta/gnss-plugins
+lib/vyatta/gnss.py usr/lib/python3/dist-packages/vyatta

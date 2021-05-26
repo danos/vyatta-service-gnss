@@ -1,0 +1,239 @@
+module vyatta-service-gnss-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-service-gnss:1";
+	prefix vyatta-service-gnss-v1;
+
+	import configd-v1 {
+		prefix configd;
+	}
+	import vyatta-services-v1 {
+		prefix service;
+	}
+
+	organization "AT&T Inc.";
+	contact
+		"AT&T
+		 Postal: 208 S. Akard Street
+		 Dallas, TX 75202, USA
+		 Web: www.att.com";
+
+	description
+		"Copyright (c) 2021, AT&T Intellectual Property.
+		 All rights reserved.
+
+		 Redistribution and use in source and binary forms, with or without
+		 modification, are permitted provided that the following conditions
+		 are met:
+ 
+		 1. Redistributions of source code must retain the above copyright
+		    notice, this list of conditions and the following disclaimer.
+		 2. Redistributions in binary form must reproduce the above
+		    copyright notice, this list of conditions and the following
+		    disclaimer in the documentation and/or other materials provided
+		    with the distribution.
+		 3. Neither the name of the copyright holder nor the names of its
+		    contributors may be used to endorse or promote products derived
+		    from this software without specific prior written permission.
+ 
+		 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+		 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+		 LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+		 FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+		 COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+		 INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+		 BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+		 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+		 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+		 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+		 ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+		 POSSIBILITY OF SUCH DAMAGE.
+
+		 SPDX-License-Identifier: BSD-3-Clause
+
+		 The YANG module defines a data model for modeling the state
+		 state of Global Navigation Satellite Systems.";
+
+	revision 2021-04-20 {
+		description "Initial revision of version 1";
+	}
+
+	feature gnss {
+		description "Global Navigation Satellite System support";
+	}
+
+	identity gnss-system {
+		description "Base GNSS identity";
+	}
+
+	identity gps-system {
+		base gnss-system;
+		description "NAVSTAR Global Positioning System (GPS)";
+	}
+
+	typedef antenna-status-enumeration {
+		description "The current tracking status the GNSS receiver";
+
+		type enumeration {
+			enum "OK" {
+				description "The GNSS receiver is not reporting an antenna problem.";
+			}
+			enum "short" {
+				description "The GNSS receiver is reporting a short-circuited antenna.";
+			}
+			enum "open" {
+				description "The GNSS receiver is reporting a disconnected antenna.";
+			}
+			enum "unknown" {
+				description "The GNSS receiver's antenna connection is in an unknown state.";
+			}
+		}
+	}
+
+	typedef tracking-status-enumeration {
+		description "The current status of the GNSS receiver";
+
+		type enumeration {
+			enum "acquiring" {
+				description "The GNSS receiver is attempting to acquire a valid signal.";
+			}
+			enum "tracking" {
+				description "The GNSS recevier has valid time and/or position fix.";
+			}
+			enum "unknown" {
+				description "The GNSS receiver is in an unkown state.";
+			}
+		}
+	}
+
+	grouping gnss-satellite {
+		leaf azimuth {
+			description "Azimuth angle";
+			type decimal64 {
+				fraction-digits 16;
+			}
+			units "decimal degrees";
+		}
+
+		leaf elevation {
+			description "Elevation angle";
+			type decimal64 {
+				fraction-digits 16;
+			}
+			units "decimal degrees";
+		}
+
+		leaf PRN {
+			description "Pseudorandom Noise code assignment";
+			type string;
+		}
+
+		leaf SNR {
+			description "Carrier to noise ratio (signal strength)";
+			type decimal64 {
+				fraction-digits 16;
+			}
+			units "dB-Hz";
+		}
+	}
+
+	augment /service:service {
+		if-feature gnss;
+
+		container gnss {
+			container state {
+				description "Contains the status of all the GNSS receivers";
+				config false;
+				configd:get-state "vyatta-gnss-util --get-state";
+
+				list instance-list {
+					description "Status from one or more GNSS receivers";
+					key "instance-number";
+
+					leaf antenna-status {
+						description "Reports the current antenna status of the GNSS recevier";
+						type antenna-status-enumeration;
+					}
+
+					leaf enabled {
+						description "True if the GNSS receiver is active";
+						type boolean;
+					}
+
+					leaf instance-number {
+						description "Instance number for the current GNSS receiver";
+						type uint32;
+					}
+
+					leaf latitude {
+						description "Measured latitude reported by the GNSS receiver";
+						type decimal64 {
+							fraction-digits 16;
+						}
+						units "decimal degrees";
+					}
+
+					leaf longitude {
+						description "Measured longitude reported by the GNSS receiver";
+						type decimal64 {
+							fraction-digits 16;
+						}
+						units "decimal degrees";
+					}
+
+					list satellites-in-view {
+						key "instance-number";
+
+						leaf instance-number {
+							description "Instance number for the current GNSS satellite";
+							type uint32;
+						}
+						uses gnss-satellite;
+					}
+
+					leaf system {
+						description "GNSS system used by the GNSS receiver";
+						type identityref {
+							base gnss-system;
+						}
+					}
+
+					leaf time {
+						description "Time (in UTC) reported by the GNSS receiver";
+						type uint64;
+						units "seconds";
+					}
+
+					leaf tracking-status {
+						description "Reports the current tracking status of the GNSS recevier";
+						type tracking-status-enumeration;
+					}
+				 }
+			}
+		}
+	}
+
+	rpc start-gnss {
+		description "Start a GNSS receiver so it can provide timing services"; 
+
+		input {
+			leaf instance-number {
+				description "Instance number of the GNSS receiver";
+				type uint32;
+			}
+		}
+
+		configd:call-rpc "vyatta-gnss-util --start-gnss";
+	}
+
+	rpc stop-gnss {
+		description "Stop a GNSS receiver providing timing services"; 
+
+		input {
+			leaf instance-number {
+				description "Instance number of the GNSS receiver";
+				type uint32;
+			}
+		}
+
+		configd:call-rpc "vyatta-gnss-util --stop-gnss";
+	}
+}

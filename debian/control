@@ -1,0 +1,31 @@
+Source: vyatta-service-gnss
+Section: contrib/net
+Priority: optional
+Maintainer: Vyatta Package Maintainers <DL-vyatta-help@att.com>
+Build-Depends: debhelper (>= 9),
+               dh-yang,
+Standards-Version: 3.9.8
+
+Package: vyatta-service-gnss-v1-yang
+Architecture: all
+Depends: vyatta-service-gnss, ${misc:Depends}, ${yang:Depends}
+Description: vyatta-service-gnss-v1 module
+ YANG integration for GNSS configuration
+
+Package: vyatta-op-show-gnss-v1-yang
+Architecture: all
+Depends: vyatta-service-gnss, ${misc:Depends}, ${yang:Depends}
+Description: vyatta-op-show-gnss-v1 module
+ YANG integration for GNSS operational commands
+
+Package: vyatta-op-start-gnss-v1-yang
+Architecture: all
+Depends: vyatta-service-gnss, ${misc:Depends}, ${yang:Depends}
+Description: vyatta-op-start-gnss-v1 module
+ YANG integration for GNSS operational commands
+
+Package: vyatta-op-stop-gnss-v1-yang
+Architecture: all
+Depends: vyatta-service-gnss, ${misc:Depends}, ${yang:Depends}
+Description: vyatta-op-stop-gnss-v1 module
+ YANG integration for GNSS operational commands
