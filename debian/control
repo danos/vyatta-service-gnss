@@ -3,8 +3,21 @@ Section: contrib/net
 Priority: optional
 Maintainer: Vyatta Package Maintainers <DL-vyatta-help@att.com>
 Build-Depends: debhelper (>= 9),
+               dh-systemd,
+               dh-python,
                dh-yang,
+               python3,
 Standards-Version: 3.9.8
+
+Package: vyatta-service-gnss
+Architecture: all
+Depends: python3,
+         python3-systemd,
+         python3-zmq,
+         ${python3:Depends},
+         ${misc:Depends}
+Description: GNSS integration and support
+ Provides scripts and files necessary to manage GNSS devices
 
 Package: vyatta-service-gnss-v1-yang
 Architecture: all

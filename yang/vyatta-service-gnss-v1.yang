@@ -99,7 +99,7 @@ module vyatta-service-gnss-v1 {
 				description "The GNSS recevier has valid time and/or position fix.";
 			}
 			enum "unknown" {
-				description "The GNSS receiver is in an unkown state.";
+				description "The GNSS receiver is in an unknown state.";
 			}
 		}
 	}
