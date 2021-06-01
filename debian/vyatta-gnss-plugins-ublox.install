@@ -1,0 +1,2 @@
+lib/vyatta//gnss-plugins/UbloxGNSS.py usr/lib/python3/dist-packages/vyatta/gnss-plugins
+platform/vyatta-service-gnss-ufi-s9500-30xs.platform lib/vyatta-platform/platforms
