@@ -5,3 +5,6 @@
 
 %:
 	dh $@ --with=yang --with=python3,systemd
+
+override_dh_auto_test:
+	python3 -m unittest unittests

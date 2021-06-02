@@ -2,11 +2,14 @@ Source: vyatta-service-gnss
 Section: contrib/net
 Priority: optional
 Maintainer: Vyatta Package Maintainers <DL-vyatta-help@att.com>
-Build-Depends: debhelper (>= 9),
+Build-Depends: daemon,
+               debhelper (>= 9),
                dh-systemd,
                dh-python,
                dh-yang,
                python3,
+               python3-systemd,
+               python3-zmq,
 Standards-Version: 3.9.8
 
 Package: vyatta-service-gnss
