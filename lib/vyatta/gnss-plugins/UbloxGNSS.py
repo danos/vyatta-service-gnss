@@ -16,8 +16,10 @@ import array
 import datetime
 import json
 import time
+import syslog
 import usb.core
 import usb.util
+import vci
 
 from vyatta.gnss import GNSS
 from vyatta.platform.detect import PlatformError, detect
@@ -68,9 +70,9 @@ def gnss_dpll_state():
     return one_pps['valid_dpll1'], ten_mhz['valid_dpll2']
 
 
-def gnss_antenna_status():
+def gnss_antenna_state():
     """
-    Fetch the antenna status from the CPLD register 0x1c.
+    Fetch the antenna state from the CPLD register 0x1c.
     Two bits are used to indicate the short or open state.
 
     D[0] GNSS antenna shorted status
@@ -88,6 +90,19 @@ def gnss_antenna_status():
     is_shorted = value & 0x1
     is_open = value & 0x2
     return is_shorted, is_open
+
+
+def gnss_antenna_status(is_shorted, is_open):
+    """
+    Return a valid antenna-status-enumeration from vyatta-service-gnss-v1
+    """
+    state_table = {
+        (0, 0): "short",
+        (0, 1): "unknown",
+        (1, 0): "OK",
+        (1, 1): "open",
+    }
+    return state_table[is_shorted, is_open]
 
 
 def usb_write(usb_dev, cmd):
@@ -210,8 +225,9 @@ class _UbloxGNSS(GNSS):
         self.in_holdover = False
         self.gnss_led = LedState.UNKNOWN
         self.sync_led = LedState.UNKNOWN
+        self.antenna_status = None
 
-        self.update_hardware_status()
+        syslog.openlog("vyatta-gnssd")
 
     def start(self):
         """
@@ -245,14 +261,8 @@ class _UbloxGNSS(GNSS):
         """
         Get the status of ublox GNSS device.
         """
-        is_shorted, is_open = gnss_antenna_status()
-        state_table = {
-            (0, 0): "short",
-            (0, 1): "OK",
-            (1, 0): "unknown",
-            (1, 1): "open",
-        }
-        antenna_status = state_table[is_open, is_shorted]
+        is_shorted, is_open = gnss_antenna_state()
+        antenna_status = gnss_antenna_status(is_shorted, is_open)
 
         tracking_status = 'unknown'
         (one_pps, ten_mhz) = gnss_dpll_state()
@@ -443,7 +453,7 @@ class _UbloxGNSS(GNSS):
             cpld_util = CPLDUtility()
             cpld_util.set_led_control(led, on_off, color, blink)
 
-        is_shorted, is_open = gnss_antenna_status()
+        is_shorted, is_open = gnss_antenna_state()
 
         # open=1, shorted=1                         => unconnected
         #
@@ -508,6 +518,21 @@ class _UbloxGNSS(GNSS):
         if self.sync_led != state:
             update_led(Led.SYNC, state)
             self.sync_led = state
+
+        # Log antenna status update if necessary
+        antenna_status = gnss_antenna_status(is_shorted, is_open)
+        if antenna_status != self.antenna_status:
+            instance_number = self.get_instance()
+            syslog.syslog(syslog.LOG_WARNING,
+                          f'GNSS {instance_number}: antenna status has changed to {antenna_status}')
+            client = vci.Client()
+            notification = {
+                'antenna-status': antenna_status,
+                'instance-number': instance_number
+            }
+            client.emit('vyatta-service-gnss-v1',
+                        'antenna-status-update', notification)
+            self.antenna_status = antenna_status
 
 
 if __name__ == "__main__":
