@@ -15,6 +15,7 @@ import argparse
 import array
 import datetime
 import json
+import time
 import usb.core
 import usb.util
 
@@ -108,6 +109,70 @@ def usb_write(usb_dev, cmd):
     endpoint.write(cmd)
 
 
+@unique
+class LedState(Enum):
+    """
+    Possible states for an LED
+    """
+    UNKNOWN = 0
+    OFF = 1
+    GREEN = 2
+    BLINKING_GREEN = 3
+    YELLOW = 4
+    BLINKING_YELLOW = 5
+
+
+class TimingState(Enum):
+    """
+    Possible states for the system timing core.
+    """
+    PHASE_LOCKED = 1
+    FREQUENCY_LOCKED = 2
+    HOLDOVER = 3
+    FREE_RUN = 4
+
+
+def dpll_get_timing_state():
+    """
+    Check and report the state of the system timing. If either
+    DPLL is locked or in a pre-locked state, we report that.
+    If we are in any of the other states, we choose Holdover
+    or Free Run.
+
+    DPLL1        DPLL2            DPLL1 or DPLL2
+    PHASE_LOCK > FREQUENCY_LOCK > HOLDOVER       > FREE_RUN
+    """
+    def is_locked(dpll):
+        if dpll['current'] is not None and \
+           dpll['status']['operating_status'] in \
+           ('Locked', 'Pre-locked', 'Pre-locked2'):
+            return True
+        return False
+
+    def is_holdover(dpll):
+        if dpll['status']['operating_status'] == 'Holdover':
+            return True
+        return False
+
+    DPLL1 = 1
+    DPLL2 = 2
+
+    timing_util = timing_utility.TimingUtility()
+    dpll1 = timing_util.get_dpll_status(DPLL1)
+    dpll2 = timing_util.get_dpll_status(DPLL2)
+
+    timing_state = TimingState.FREE_RUN
+
+    if is_locked(dpll1):
+        timing_state = TimingState.PHASE_LOCKED
+    elif is_locked(dpll2):
+        timing_state = TimingState.FREQUENCY_LOCKED
+    elif is_holdover(dpll1) or is_holdover(dpll2):
+        timing_state = TimingState.HOLDOVER
+
+    return timing_state
+
+
 class _UbloxGNSS(GNSS):
     """
     ublox GNSS device support for the S9500 30XS platform.
@@ -142,6 +207,9 @@ class _UbloxGNSS(GNSS):
         self.have_satellites = False
         self.satellites = []
         self.enabled = True
+        self.in_holdover = False
+        self.gnss_led = LedState.UNKNOWN
+        self.sync_led = LedState.UNKNOWN
 
         self.update_hardware_status()
 
@@ -341,19 +409,8 @@ class _UbloxGNSS(GNSS):
 
     def update_hardware_status(self):
         """
-        Update the GPS status LED.
+        Update the GPS and SYNC status LEDs.
         """
-        @unique
-        class LedState(Enum):
-            """
-            Possible states for an LED
-            """
-            OFF = 1
-            GREEN = 2
-            BLINKING_GREEN = 3
-            YELLOW = 4
-            BLINKING_YELLOW = 5
-
         def update_led(led, state):
             """
             Set the given LED to the specific state
@@ -415,7 +472,42 @@ class _UbloxGNSS(GNSS):
             else:
                 state = LedState.YELLOW
 
-        update_led(Led.GPS, state)
+        if self.gnss_led != state:
+            update_led(Led.GPS, state)
+            self.gnss_led = state
+
+        # This platform has a stratum 3e clock. It is precise
+        # enough to maintain end-to-end PTP timing for at least
+        # 2 hours.
+        IN_SPEC_HOLDOVER_TIME = 7200    # seconds
+
+        timing_state = dpll_get_timing_state()
+        if timing_state == TimingState.PHASE_LOCKED:
+            state = LedState.GREEN
+            self.in_holdover = False
+        elif timing_state == TimingState.FREQUENCY_LOCKED:
+            state = LedState.BLINKING_GREEN
+            self.in_holdover = False
+        elif timing_state == TimingState.HOLDOVER:
+            # If we have been in holdover too long, then we
+            # should blink to indicate that we have exceeded
+            # the holdover specification.
+            if not self.in_holdover:
+                self.in_holdover = True
+                self.holdover_start = time.time()
+
+            holdover_time = time.time() - self.holdover_start
+            if holdover_time > IN_SPEC_HOLDOVER_TIME:
+                state = LedState.BLINKING_YELLOW
+            else:
+                state = LedState.YELLOW
+        else:
+            state = LedState.OFF
+            self.in_holdover = False
+
+        if self.sync_led != state:
+            update_led(Led.SYNC, state)
+            self.sync_led = state
 
 
 if __name__ == "__main__":
