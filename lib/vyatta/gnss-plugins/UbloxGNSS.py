@@ -9,6 +9,8 @@
 Support for the ublox GNSS device in the S9500 30XS platform.
 """
 
+from enum import Enum, unique
+
 import argparse
 import array
 import datetime
@@ -341,6 +343,49 @@ class _UbloxGNSS(GNSS):
         """
         Update the GPS status LED.
         """
+        @unique
+        class LedState(Enum):
+            """
+            Possible states for an LED
+            """
+            OFF = 1
+            GREEN = 2
+            BLINKING_GREEN = 3
+            YELLOW = 4
+            BLINKING_YELLOW = 5
+
+        def update_led(led, state):
+            """
+            Set the given LED to the specific state
+            """
+            state_table = {
+                LedState.OFF:
+                    (Led.STATUS_OFF,
+                     Led.COLOR_GREEN,
+                     Led.BLINK_STATUS_SOLID),
+                LedState.GREEN:
+                    (Led.STATUS_ON,
+                     Led.COLOR_GREEN,
+                     Led.BLINK_STATUS_SOLID),
+                LedState.BLINKING_GREEN:
+                    (Led.STATUS_ON,
+                     Led.COLOR_GREEN,
+                     Led.BLINK_STATUS_BLINKING),
+                LedState.YELLOW:
+                    (Led.STATUS_ON,
+                     Led.COLOR_YELLOW,
+                     Led.BLINK_STATUS_SOLID),
+                LedState.BLINKING_YELLOW:
+                    (Led.STATUS_ON,
+                     Led.COLOR_YELLOW,
+                     Led.BLINK_STATUS_BLINKING),
+            }
+
+            on_off, color, blink = state_table[state]
+
+            cpld_util = CPLDUtility()
+            cpld_util.set_led_control(led, on_off, color, blink)
+
         is_shorted, is_open = gnss_antenna_status()
 
         # open=1, shorted=1                         => unconnected
@@ -357,29 +402,20 @@ class _UbloxGNSS(GNSS):
         # dpll_state = pre-locked1|pre-locked2      => locked
 
         if is_open == 1 and is_shorted == 1:
-            on_off = Led.STATUS_OFF
-            color = Led.COLOR_GREEN
-            blink = Led.BLINK_STATUS_SOLID
+            state = LedState.OFF
         elif is_open == 0 and is_shorted == 0:
-            on_off = Led.STATUS_ON
-            color = Led.COLOR_YELLOW
-            blink = Led.BLINK_STATUS_BLINKING
+            state = LedState.BLINKING_YELLOW
         elif is_open == 0 and is_shorted == 1:
             (one_pps, ten_mhz) = gnss_dpll_state()
 
-            on_off = Led.STATUS_ON
             if one_pps and ten_mhz:
-                color = Led.COLOR_GREEN
-                blink = Led.BLINK_STATUS_SOLID
+                state = LedState.GREEN
             elif ten_mhz:
-                color = Led.COLOR_GREEN
-                blink = Led.BLINK_STATUS_BLINKING
+                state = LedState.BLINKING_GREEN
             else:
-                color = Led.COLOR_YELLOW
-                blink = Led.BLINK_STATUS_SOLID
+                state = LedState.YELLOW
 
-        cpld_util = CPLDUtility()
-        cpld_util.set_led_control(Led.GPS, on_off, color, blink)
+        update_led(Led.GPS, state)
 
 
 if __name__ == "__main__":
