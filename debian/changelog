@@ -1,0 +1,9 @@
+vyatta-service-gnss (1.0) unstable; urgency=medium
+
+  * Initial empty commit
+  * Add YANG models for GNSS
+  * Add vyatta-gnssd daemon implementation
+  * Add UbloxGNSS plugin for S9500 30XS platform
+  * Add some unit tests coverage
+
+ -- Charles (Chas) Williams <ciwillia@vyatta.att-mail.com>  Tue, 08 Jun 2021 11:04:00 -0400
