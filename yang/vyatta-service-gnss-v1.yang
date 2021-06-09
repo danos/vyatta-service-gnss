@@ -96,7 +96,7 @@ module vyatta-service-gnss-v1 {
 				description "The GNSS receiver is attempting to acquire a valid signal.";
 			}
 			enum "tracking" {
-				description "The GNSS recevier has valid time and/or position fix.";
+				description "The GNSS receiver has valid time and/or position fix.";
 			}
 			enum "unknown" {
 				description "The GNSS receiver is in an unknown state.";
@@ -149,7 +149,7 @@ module vyatta-service-gnss-v1 {
 					key "instance-number";
 
 					leaf antenna-status {
-						description "Reports the current antenna status of the GNSS recevier";
+						description "Reports the current antenna status of the GNSS receiver";
 						type antenna-status-enumeration;
 					}
 
@@ -203,7 +203,7 @@ module vyatta-service-gnss-v1 {
 					}
 
 					leaf tracking-status {
-						description "Reports the current tracking status of the GNSS recevier";
+						description "Reports the current tracking status of the GNSS receiver";
 						type tracking-status-enumeration;
 					}
 				 }
@@ -220,7 +220,7 @@ module vyatta-service-gnss-v1 {
 		}
 
 		leaf antenna-status {
-			description "The new antenna status of the GNSS recevier";
+			description "The new antenna status of the GNSS receiver";
 			type antenna-status-enumeration;
 		}
 	}
