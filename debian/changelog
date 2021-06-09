@@ -1,3 +1,12 @@
+vyatta-service-gnss (1.1) unstable; urgency=medium
+
+  * Represent LED state as enumeration (Bugfix: VRVDR-55309)
+  * Update the SYNC LED based on DPLL states (Bugfix: VRVDR-55309)
+  * Monitor GNSS antenna state transitions (Bugfix: VRVDR-55310)
+  * Fix spelling of receiver
+
+ -- Charles (Chas) Williams <ciwillia@vyatta.att-mail.com>  Wed, 09 Jun 2021 18:33:10 -0400
+
 vyatta-service-gnss (1.0) unstable; urgency=medium
 
   * Initial empty commit
