@@ -1,3 +1,9 @@
+vyatta-service-gnss (1.2) unstable; urgency=medium
+
+  * Handle a missing antenna (Bugfix: VRVDR-55356)
+
+ -- Charles (Chas) Williams <ciwillia@vyatta.att-mail.com>  Fri, 11 Jun 2021 16:51:07 -0400
+
 vyatta-service-gnss (1.1) unstable; urgency=medium
 
   * Represent LED state as enumeration (Bugfix: VRVDR-55309)
