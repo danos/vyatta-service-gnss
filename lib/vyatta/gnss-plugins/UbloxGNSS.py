@@ -87,8 +87,8 @@ def gnss_antenna_state():
     GNSS_STATUS_REGISTER = 0x1c
 
     value = lpc.regGet(LPCDevType.CPLD_ON_MAIN_BOARD, GNSS_STATUS_REGISTER)
-    is_shorted = value & 0x1
-    is_open = value & 0x2
+    is_shorted = value & 0x1 == 0x1
+    is_open = value & 0x2 == 0x2
     return is_shorted, is_open
 
 
@@ -468,9 +468,7 @@ class _UbloxGNSS(GNSS):
         # open=0, shorted=1,
         # dpll_state = pre-locked1|pre-locked2      => locked
 
-        if is_open == 1 and is_shorted == 1:
-            state = LedState.OFF
-        elif is_open == 0 and is_shorted == 0:
+        if is_open == 0 and is_shorted == 0:
             state = LedState.BLINKING_YELLOW
         elif is_open == 0 and is_shorted == 1:
             (one_pps, ten_mhz) = gnss_dpll_state()
@@ -481,6 +479,8 @@ class _UbloxGNSS(GNSS):
                 state = LedState.BLINKING_GREEN
             else:
                 state = LedState.YELLOW
+        else:
+            state = LedState.OFF
 
         if self.gnss_led != state:
             update_led(Led.GPS, state)
