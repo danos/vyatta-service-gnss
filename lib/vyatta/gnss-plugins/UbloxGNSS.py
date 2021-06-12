@@ -318,11 +318,16 @@ class _UbloxGNSS(GNSS):
             satellite = {}
             satellite['instance-number'] = len(self.satellites)
             satellite['PRN'] = fields[index]
-            satellite['elevation'] = str(fields[index + 1])
-            satellite['azimuth'] = str(fields[index + 2])
+
+            elevation = fields[index + 1]
+            if elevation != '':
+                satellite['elevation'] = elevation
+            azimuth = fields[index + 2]
+            if azimuth != '':
+                satellite['azimuth'] = azimuth
             snr = fields[index + 3]
             if snr != '':
-                satellite['SNR'] = float(snr)
+                satellite['SNR'] = snr
             self.satellites.append(satellite)
 
         if num_sentences == ith_sentence:
