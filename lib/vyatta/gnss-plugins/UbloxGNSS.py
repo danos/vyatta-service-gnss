@@ -169,6 +169,9 @@ def dpll_get_timing_state():
             return True
         return False
 
+    if not hasattr(dpll_get_timing_state, "previously_locked"):
+        dpll_get_timing_state.previously_locked = False
+
     DPLL1 = 1
     DPLL2 = 2
 
@@ -180,9 +183,12 @@ def dpll_get_timing_state():
 
     if is_locked(dpll1):
         timing_state = TimingState.PHASE_LOCKED
+        dpll_get_timing_state.previously_locked = True
     elif is_locked(dpll2):
         timing_state = TimingState.FREQUENCY_LOCKED
-    elif is_holdover(dpll1) or is_holdover(dpll2):
+        dpll_get_timing_state.previously_locked = True
+    elif (is_holdover(dpll1) or is_holdover(dpll2)) and \
+            dpll_get_timing_state.previously_locked:
         timing_state = TimingState.HOLDOVER
 
     return timing_state
