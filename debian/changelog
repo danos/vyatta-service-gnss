@@ -1,3 +1,10 @@
+vyatta-service-gnss (1.3) unstable; urgency=medium
+
+  * Fix for DPLL2 always reporting Holdover (Bugfix: VRVDR-55359)
+  * Fix NMEA GSV decoding (Bugfix: VRVDR-55360)
+
+ -- Charles (Chas) Williams <ciwillia@vyatta.att-mail.com>  Mon, 14 Jun 2021 11:23:49 -0400
+
 vyatta-service-gnss (1.2) unstable; urgency=medium
 
   * Handle a missing antenna (Bugfix: VRVDR-55356)
