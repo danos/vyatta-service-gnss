@@ -52,7 +52,7 @@ module vyatta-service-gnss-v1 {
 		 The YANG module defines a data model for modeling the state
 		 state of Global Navigation Satellite Systems.";
 
-	revision 2021-06-08 {
+	revision 2021-06-30 {
 		description "Initial revision of version 1";
 	}
 
@@ -80,7 +80,7 @@ module vyatta-service-gnss-v1 {
 				description "The GNSS receiver is reporting a short-circuited antenna.";
 			}
 			enum "open" {
-				description "The GNSS receiver is reporting a disconnected antenna.";
+				description "The GNSS receiver is reporting a disconnected or passive antenna.";
 			}
 			enum "unknown" {
 				description "The GNSS receiver's antenna connection is in an unknown state.";

@@ -277,6 +277,9 @@ class _UbloxGNSS(GNSS):
         elif ten_mhz:
             tracking_status = 'acquiring'
 
+        if (one_pps or ten_mhz) and antenna_status is 'open':
+            antenna_status = 'OK'
+
         status = {'instance-number': self.get_instance(),
                   'antenna-status': antenna_status,
                   'enabled': self.enabled,
@@ -490,6 +493,15 @@ class _UbloxGNSS(GNSS):
                 state = LedState.BLINKING_GREEN
             else:
                 state = LedState.YELLOW
+        elif is_open == 1 and is_shorted == 1:
+            (one_pps, ten_mhz) = gnss_dpll_state()
+
+            if one_pps and ten_mhz:
+                state = LedState.GREEN
+            elif ten_mhz:
+                state = LedState.BLINKING_GREEN   # frequency input
+            else:
+                state = LedState.OFF
         else:
             state = LedState.OFF
 

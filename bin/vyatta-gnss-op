@@ -42,7 +42,8 @@ def show_instance(instance):
     if 'enabled' in instance and not instance['enabled']:
         print('\t[DISABLED]')
     if 'antenna-status' in instance:
-        print('\tantenna-status:', instance['antenna-status'])
+        antenna_status = instance['antenna-status']
+        print('\tantenna-status:', "open (or passive antenna)" if antenna_status == 'open' else antenna_status)
     if 'tracking-status' in instance:
         print('\ttracking-status:', instance['tracking-status'])
     if 'system' in instance:
