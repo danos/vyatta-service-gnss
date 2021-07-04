@@ -201,6 +201,11 @@ class _UbloxGNSS(GNSS):
     MAX_RECORDS = 20
 
     def __init__(self):
+
+        # The GNSS might be stopped, ensure sure it is started
+        # so that configuration will succeed.
+        self.start()
+
         print('Opening the GPS...')
         usb_dev = GPSUSB()
 
