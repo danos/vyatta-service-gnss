@@ -207,11 +207,12 @@ class _UbloxGNSS(GNSS):
         self.start()
 
         self.have_time = False
-        self.gpstime = 0.0
+        self.gpstime = None
         self.have_position = False
-        self.latitude = 0.0
-        self.longitude = 0.0
+        self.latitude = None
+        self.longitude = None
         self.have_satellites = False
+        self.GSV_decoded = 0
         self.satellites = []
         self.enabled = True
         self.in_holdover = False
@@ -332,12 +333,14 @@ class _UbloxGNSS(GNSS):
         if self.enabled:
             self.fetch_gnss_data()
 
-            if self.have_time:
+            if self.have_time and self.gpstime:
                 status['time'] = self.gpstime
 
             if self.have_position:
-                status['latitude'] = str(self.latitude)
-                status['longitude'] = str(self.longitude)
+                if self.latitude:
+                    status['latitude'] = str(self.latitude)
+                if self.longitude:
+                    status['longitude'] = str(self.longitude)
 
             if self.have_satellites:
                 status['satellites-in-view'] = self.satellites
@@ -352,11 +355,17 @@ class _UbloxGNSS(GNSS):
         $GPGSV,3,2,12,14,08,327,,16,16,176,12,21,48,259,23,22,14,203,20*75
         $GPGSV,3,3,12,23,23,046,,27,61,125,10,30,09,302,14,32,11,116,*74
         """
+        if self.have_satellites:
+            return
+
         num_sentences = int(fields[1])
         ith_sentence = int(fields[2])
 
         if ith_sentence == 1:
+            self.GSV_decoded = 0
             self.satellites = []
+
+        self.GSV_decoded = self.GSV_decoded + 1
 
         for index in range(4, len(fields), 4):
             satellite = {}
@@ -374,7 +383,7 @@ class _UbloxGNSS(GNSS):
                 satellite['SNR'] = snr
             self.satellites.append(satellite)
 
-        if num_sentences == ith_sentence:
+        if num_sentences == self.GSV_decoded:
             self.have_satellites = True
 
     def decode_rmc(self, fields):
@@ -383,6 +392,16 @@ class _UbloxGNSS(GNSS):
 
         $GPRMC,144340.00,A,5127.30667,N,00058.67664,W,0.047,,020621,,,A*6D
         """
+        if self.have_position:
+            return
+
+        # Is the position valid?
+        if fields[3] == '' or fields[5] == '':
+            self.have_position = True
+            self.latitude = None
+            self.longitude = None
+            return
+
         degrees = float(fields[3][0:2])
         minutes = float(fields[3][2:])
         latitude = degrees + minutes / 60.0
@@ -403,6 +422,16 @@ class _UbloxGNSS(GNSS):
 
         $GPZDA,144340.00,02,06,2021,00,00*65
         """
+        if self.have_time:
+            return
+
+        # Is the time valid?
+        if fields[1] == '' or fields[2] == '' or \
+           fields[3] == '' or fields[4] == '':
+            self.have_time = True
+            self.gpstime = None
+            return
+
         hour = int(fields[1][0:2])
         mins = int(fields[1][2:4])
         secs = int(fields[1][4:6])
@@ -451,6 +480,7 @@ class _UbloxGNSS(GNSS):
         self.have_time = False
         self.have_position = False
         self.have_satellites = False
+        self.GSV_decoded = 0
 
         records_read = 0
 
@@ -468,7 +498,7 @@ class _UbloxGNSS(GNSS):
                 records_read += 1
                 if records_read > self.MAX_RECORDS:
                     read = False
-            except:
+            except usb.USBError:
                 # Continuous read until timeout
                 pass
 
