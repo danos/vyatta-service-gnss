@@ -258,14 +258,43 @@ class _UbloxGNSS(GNSS):
         """
         Stop the ublox GNSS device.
         """
+        def hardware_reset():
+            """
+            Issue UBX-CFG-RST with resetMode = 0x0 (hardware reset)
+            """
+            cmd = array.array('B', [0xb5, 0x62, 0x06, 0x04, 0x04, 0x00,
+                                    0x00, 0x00, 0x00, 0x00, 0x0e, 0x64])
+            usb_dev = GPSUSB()
+            usb_write(usb_dev, cmd)
 
-        # UBX-CFG-RST: resetMode = 0x08 -- controller stop
-        cmd = array.array('B', [0xb5, 0x62, 0x06, 0x04, 0x04, 0x00,
-                                0x00, 0x00, 0x08, 0x00, 0x16, 0x74])
-        usb_dev = GPSUSB()
-        usb_write(usb_dev, cmd)
+        def controlled_stop():
+            """
+            Issue UBX-CFG-RST with resetMode = 0x8 (controlled stop)
+            """
+            cmd = array.array('B', [0xb5, 0x62, 0x06, 0x04, 0x04, 0x00,
+                                    0x00, 0x00, 0x08, 0x00, 0x16, 0x74])
+            usb_dev = GPSUSB()
+            usb_write(usb_dev, cmd)
+
+        # The hardware takes approximately 2 seconds to
+        # return from hardware reset.
+        RESET_TIME = 2
+
+        hardware_reset()
+
+        # Wait for the hardware to come back. After it
+        # returns, stop all the GNSS tasks.
+        while True:
+            try:
+                time.sleep(RESET_TIME)
+                controlled_stop()
+                break
+            except usb.USBError:
+                pass
+            except ValueError as e:
+                pass
+
         self.enabled = False
-
         return True
 
     def get_status(self):
