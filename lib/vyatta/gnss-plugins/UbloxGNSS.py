@@ -206,25 +206,6 @@ class _UbloxGNSS(GNSS):
         # so that configuration will succeed.
         self.start()
 
-        print('Opening the GPS...')
-        usb_dev = GPSUSB()
-
-        print('Configuring the GPS...')
-        usb_dev.enable()
-        usb_dev.configureUartTod()
-
-        # Enable GSV sentences
-        cmd = array.array('B', [0xb5, 0x62, 0x06, 0x01, 0x08, 0x00,
-                                0xf0, 0x03, 0x00, 0x00, 0x00, 0x01,
-                                0x00, 0x01, 0x04, 0x3c])
-        usb_write(usb_dev, cmd)
-
-        # Enable RMC sentences
-        cmd = array.array('B', [0xb5, 0x62, 0x06, 0x01, 0x08, 0x00,
-                                0xf0, 0x04, 0x01, 0x00, 0x00, 0x01,
-                                0x01, 0x01, 0x07, 0x4b])
-        usb_write(usb_dev, cmd)
-
         self.have_time = False
         self.gpstime = 0.0
         self.have_position = False
@@ -244,14 +225,40 @@ class _UbloxGNSS(GNSS):
         """
         Start the ublox GNSS device.
         """
+        def controlled_start():
+            """
+            Issue UBX-CFG-RST with resetMode = 0x9 (controlled start)
+            """
+            cmd = array.array('B', [0xb5, 0x62, 0x06, 0x04, 0x04, 0x00,
+                                    0x00, 0x00, 0x09, 0x00, 0x17, 0x76])
+            usb_dev = GPSUSB()
+            usb_write(usb_dev, cmd)
 
-        # UBX-CFG-RST: resetMode = 0x09 -- controller start
-        cmd = array.array('B', [0xb5, 0x62, 0x06, 0x04, 0x04, 0x00,
-                                0x00, 0x00, 0x09, 0x00, 0x17, 0x76])
-        usb_dev = GPSUSB()
-        usb_write(usb_dev, cmd)
+        def configure_gnss():
+            """
+            Apply the default configuration from UfiSpace's BSP
+            """
+            usb_dev = GPSUSB()
+
+            usb_dev.enable()
+            usb_dev.configureUartTod()
+
+            # Enable GSV sentences
+            cmd = array.array('B', [0xb5, 0x62, 0x06, 0x01, 0x08, 0x00,
+                                    0xf0, 0x03, 0x00, 0x00, 0x00, 0x01,
+                                    0x00, 0x01, 0x04, 0x3c])
+            usb_write(usb_dev, cmd)
+
+            # Enable RMC sentences
+            cmd = array.array('B', [0xb5, 0x62, 0x06, 0x01, 0x08, 0x00,
+                                    0xf0, 0x04, 0x01, 0x00, 0x00, 0x01,
+                                    0x01, 0x01, 0x07, 0x4b])
+            usb_write(usb_dev, cmd)
+
+        controlled_start()
+        configure_gnss()
+
         self.enabled = True
-
         return True
 
     def stop(self):
