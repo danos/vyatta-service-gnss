@@ -1,3 +1,11 @@
+vyatta-service-gnss (1.6) unstable; urgency=medium
+
+  * UBloxGNSS: perform a hardware reset on stop (Bugfix: VRVDR-55589)
+  * UBloxGNSS: re-apply configure after hardware reset (Bugfix: VRVDR-55589)
+  * UbloxGNSS: handle missing fields (Bugfix: VRVDR-55804)
+
+ -- Charles (Chas) Williams <ciwillia@vyatta.att-mail.com>  Fri, 30 Jul 2021 16:36:32 -0400
+
 vyatta-service-gnss (1.5) unstable; urgency=medium
 
   * UBloxGNSS: start the device before configuration (Bugfix: VRVDR-55596)
