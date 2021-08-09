@@ -553,7 +553,9 @@ class _UbloxGNSS(GNSS):
         # open=0, shorted=1,
         # dpll_state = pre-locked1|pre-locked2      => locked
 
-        if is_open == 0 and is_shorted == 0:
+        if not self.enabled:
+            state = LedState.OFF
+        elif is_open == 0 and is_shorted == 0:
             state = LedState.BLINKING_YELLOW
         elif is_open == 0 and is_shorted == 1:
             (one_pps, ten_mhz) = gnss_dpll_state()
