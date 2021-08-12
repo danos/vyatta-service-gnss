@@ -23,7 +23,7 @@ class VyattaGnssDaemon:
     for the GNSS devices, and providing a message based service for
     communication.
     """
-    POLL_TIMEOUT = 3000                # 3 seconds
+    POLL_TIMEOUT = 10000                # 10 seconds
     instance_count = 0
 
     PUB_ENDPOINT = "ipc:///tmp/gnssd_pub.socket"
