@@ -52,6 +52,10 @@ module vyatta-service-gnss-v1 {
 		 The YANG module defines a data model for modeling the state
 		 state of Global Navigation Satellite Systems.";
 
+	revision 2021-08-15 {
+		description "Add support for reporting GNSS survey status";
+	}
+
 	revision 2021-06-30 {
 		description "Initial revision of version 1";
 	}
@@ -100,6 +104,22 @@ module vyatta-service-gnss-v1 {
 			}
 			enum "unknown" {
 				description "The GNSS receiver is in an unknown state.";
+			}
+		}
+	}
+
+	typedef survey-status-enumeration {
+		description "The current survey status of the GNSS receiver";
+
+		type enumeration {
+			enum "sampling" {
+				description "The GNSS receiver is measuring the fixed position.";
+			}
+			enum "fixed-position" {
+				description "The GNSS receiver has entered fixed position mode.";
+			}
+			enum "unknown" {
+				description "The GNSS receiver's survey status is in an unknown state.";
 			}
 		}
 	}
@@ -187,6 +207,22 @@ module vyatta-service-gnss-v1 {
 							type uint32;
 						}
 						uses gnss-satellite;
+					}
+
+					leaf survey-observations {
+						description "Reports the number of observations used in the survey";
+						type uint32;
+					}
+
+					leaf survey-precision {
+						description "Reports the standard deviation of the survey";
+						units "millimeters";
+						type uint32;
+					}
+
+					leaf survey-status {
+						description "Reports the current survey status of the GNSS receiver";
+						type survey-status-enumeration;
 					}
 
 					leaf system {

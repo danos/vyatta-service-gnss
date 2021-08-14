@@ -54,6 +54,12 @@ def show_instance(instance):
         print('\tlatitude:', instance['latitude'], 'degrees')
     if 'longitude' in instance:
         print('\tlongitude:', instance['longitude'], 'degrees')
+    if 'survey-status' in instance:
+        print('\tsurvey-status:', instance['survey-status'])
+    if 'survey-observations' in instance:
+        print('\tsurvey-observations:', instance['survey-observations'])
+    if 'survey-precision' in instance:
+        print('\tsurvey-precision:', instance['survey-precision'] / 1000.0, 'meters')
     if 'satellites-in-view' in instance:
         show_satellites(instance['satellites-in-view'])
 
