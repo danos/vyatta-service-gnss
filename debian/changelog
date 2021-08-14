@@ -1,3 +1,11 @@
+vyatta-service-gnss (1.7) unstable; urgency=medium
+
+  * Turn off GNSS LED when stopped (Bugfix: VRVDR-55716)
+  * UbloxGNSS: set MAXGOPROCS to 1 (Bugfix: VRVDR-55658)
+  * gnssd: poll less often (Bugfix: VRVDR-55658)
+
+ -- Charles (Chas) Williams <ciwillia@vyatta.att-mail.com>  Sat, 14 Aug 2021 15:46:41 -0400
+
 vyatta-service-gnss (1.6) unstable; urgency=medium
 
   * UBloxGNSS: perform a hardware reset on stop (Bugfix: VRVDR-55589)
