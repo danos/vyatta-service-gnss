@@ -15,6 +15,7 @@ import argparse
 import array
 import datetime
 import json
+import math
 import time
 import syslog
 import usb.core
@@ -219,6 +220,9 @@ class _UbloxGNSS(GNSS):
         self.gnss_led = LedState.UNKNOWN
         self.sync_led = LedState.UNKNOWN
         self.antenna_status = None
+        self.survey_status = None
+        self.survey_observations = None
+        self.survey_precision = None
 
         syslog.openlog("vyatta-gnssd")
 
@@ -226,21 +230,18 @@ class _UbloxGNSS(GNSS):
         """
         Start the ublox GNSS device.
         """
-        def controlled_start():
+        def controlled_start(usb_dev):
             """
             Issue UBX-CFG-RST with resetMode = 0x9 (controlled start)
             """
             cmd = array.array('B', [0xb5, 0x62, 0x06, 0x04, 0x04, 0x00,
                                     0x00, 0x00, 0x09, 0x00, 0x17, 0x76])
-            usb_dev = GPSUSB()
             usb_write(usb_dev, cmd)
 
-        def configure_gnss():
+        def configure_gnss(usb_dev):
             """
             Apply the default configuration from UfiSpace's BSP
             """
-            usb_dev = GPSUSB()
-
             usb_dev.enable()
             usb_dev.configureUartTod()
 
@@ -256,8 +257,28 @@ class _UbloxGNSS(GNSS):
                                     0x01, 0x01, 0x07, 0x4b])
             usb_write(usb_dev, cmd)
 
-        controlled_start()
-        configure_gnss()
+        def start_survey(usb_dev):
+            """
+            Start a survey with the UBX-CFG-TMODE2 command. The minimum
+            duration for this survey is 5 minutes and the required
+            accuracy for switching to fixed mode is 30 meters.
+            """
+            # UBX-CFG-TMODE2
+            cmd = array.array('B', [0xb5, 0x62, 0x06, 0x3d, 0x1c, 0x00,
+                                    0x01, 0x00, 0x00, 0x00,
+                                    0x00, 0x00, 0x00, 0x00,
+                                    0x00, 0x00, 0x00, 0x00,
+                                    0x00, 0x00, 0x00, 0x00,
+                                    0x00, 0x00, 0x00, 0x00,
+                                    0x2c, 0x01, 0x00, 0x00,  # 300s
+                                    0x30, 0x75, 0x00, 0x00,  # 30m
+                                    0x32, 0x0d])
+            usb_dev._gps_set(cmd)
+
+        usb_dev = GPSUSB()
+        controlled_start(usb_dev)
+        configure_gnss(usb_dev)
+        start_survey(usb_dev)
 
         self.enabled = True
         return True
@@ -344,6 +365,11 @@ class _UbloxGNSS(GNSS):
 
             if self.have_satellites:
                 status['satellites-in-view'] = self.satellites
+
+            if self.survey_status:
+                status['survey-status'] = self.survey_status
+                status['survey-observations'] = self.survey_observations
+                status['survey-precision'] = self.survey_precision
 
         return status
 
@@ -458,6 +484,44 @@ class _UbloxGNSS(GNSS):
         if fields[0].find('GPGSV') > 0:
             self.decode_gsv(fields)
 
+    def fetch_svin(self, usb_dev):
+        """
+        Issue a UBX-CFG-SVIN to check the current status of survey-in.
+        """
+        def u4(bytes):
+            """
+            Convert a little endian Ublox U4 type to a native integer
+            """
+            if len(bytes) != 4:
+                raise ValueError('Need exactly 4 bytes')
+            return int(bytes[0]) + \
+                int(bytes[1]) * 256 + \
+                int(bytes[2]) * 65536 + \
+                int(bytes[3]) * 16777216
+
+        cmd = array.array('B', [0xb5, 0x62, 0x0d, 0x04, 0x00, 0x00,
+                                0x11, 0x40])
+        response = usb_dev._gps_get(cmd)
+
+        variance = u4(response[22:26])
+        observations = u4(response[26:30])
+        valid = int(response[30])
+        active = int(response[31])
+
+        if active:
+            self.survey_status = 'sampling'
+        elif valid:
+            self.survey_status = 'fixed-position'
+        else:
+            self.survey_status = None
+
+        if active or valid:
+            self.survey_observations = observations
+            self.survey_precision = math.sqrt(variance)
+        else:
+            self.survey_observations = 0
+            self.survey_precision = 0
+
     def fetch_gnss_data(self):
         """
         Poll the GNSS data stream for NMEA sentences.
@@ -501,6 +565,8 @@ class _UbloxGNSS(GNSS):
             except usb.USBError:
                 # Continuous read until timeout
                 pass
+
+        self.fetch_svin(usb_dev)
 
     def update_hardware_status(self):
         """
