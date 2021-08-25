@@ -1,3 +1,10 @@
+vyatta-service-gnss (1.8) unstable; urgency=medium
+
+  [ Daniel Gollub ]
+  * debian: dh-systemd got merged into debhelper
+
+ -- Charles (Chas) Williams <ciwillia@vyatta.att-mail.com>  Wed, 25 Aug 2021 06:36:56 -0400
+
 vyatta-service-gnss (1.7) unstable; urgency=medium
 
   * Turn off GNSS LED when stopped (Bugfix: VRVDR-55716)
