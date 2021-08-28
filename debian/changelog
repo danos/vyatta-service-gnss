@@ -1,3 +1,10 @@
+vyatta-service-gnss (1.9) unstable; urgency=medium
+
+  * yang: add GNSS survey reporting (Bugfix: VRVDR-55909)
+  * ublox: add GNSS survey (Bugfix: VRVDR-55909)
+
+ -- Charles (Chas) Williams <ciwillia@vyatta.att-mail.com>  Sat, 28 Aug 2021 17:39:50 -0400
+
 vyatta-service-gnss (1.8) unstable; urgency=medium
 
   [ Daniel Gollub ]
