@@ -556,7 +556,10 @@ class _UbloxGNSS(GNSS):
         while read:
             try:
                 resp = endpoint.read(POLL_TIMEOUT)
-                self.decode_sentence(resp.tobytes().decode('utf-8'))
+                try:
+                    self.decode_sentence(resp.tobytes().decode('utf-8'))
+                except UnicodeDecodeError:
+                    continue
 
                 if self.have_time and \
                    self.have_position and \
