@@ -690,6 +690,11 @@ class _UbloxGNSS(GNSS):
 
         # Log antenna status update if necessary
         antenna_status = gnss_antenna_status(is_shorted, is_open)
+        if antenna_status is 'open':
+            (one_pps, ten_mhz) = gnss_dpll_state()
+            if (one_pps or ten_mhz):
+                antenna_status = 'OK'
+
         if antenna_status != self.antenna_status:
             instance_number = self.get_instance()
             syslog.syslog(syslog.LOG_WARNING,
