@@ -369,7 +369,8 @@ class _UbloxGNSS(GNSS):
             if self.survey_status:
                 status['survey-status'] = self.survey_status
                 status['survey-observations'] = self.survey_observations
-                status['survey-precision'] = self.survey_precision
+                if self.survey_precision:
+                    status['survey-precision'] = self.survey_precision
 
         return status
 
@@ -517,10 +518,13 @@ class _UbloxGNSS(GNSS):
 
         if active or valid:
             self.survey_observations = observations
-            self.survey_precision = math.sqrt(variance)
         else:
             self.survey_observations = 0
-            self.survey_precision = 0
+
+        if self.survey_observations == 0:
+            self.survey_precision = None
+        else:
+            self.survey_precision = math.sqrt(variance)
 
     def fetch_gnss_data(self):
         """
