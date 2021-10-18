@@ -502,12 +502,17 @@ class _UbloxGNSS(GNSS):
 
         cmd = array.array('B', [0xb5, 0x62, 0x0d, 0x04, 0x00, 0x00,
                                 0x11, 0x40])
-        response = usb_dev._gps_get(cmd)
 
-        variance = u4(response[22:26])
-        observations = u4(response[26:30])
-        valid = int(response[30])
-        active = int(response[31])
+        try:
+            response = usb_dev._gps_get(cmd)
+
+            variance = u4(response[22:26])
+            observations = u4(response[26:30])
+            valid = int(response[30])
+            active = int(response[31])
+        except usb.USBError:
+            valid = 0
+            active = 0
 
         if active:
             self.survey_status = 'sampling'
