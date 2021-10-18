@@ -1,5 +1,6 @@
 debian/vyatta-gnssd.service /lib/systemd/system
 sbin/vyatta-gnssd opt/vyatta/sbin
+sbin/vyatta-gnssd-vci opt/vyatta/sbin
 bin/vyatta-gnss-op opt/vyatta/bin
 bin/vyatta-gnss-util opt/vyatta/bin
 lib/vyatta/gnss.py usr/lib/python3/dist-packages/vyatta

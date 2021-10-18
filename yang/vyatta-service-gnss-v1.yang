@@ -17,7 +17,10 @@ module vyatta-service-gnss-v1 {
 		 Web: www.att.com";
 
 	description
-		"Copyright (c) 2021, AT&T Intellectual Property.
+		"Copyright (c) 2021, Ciena Corporation.
+		 All rights reserved.
+
+		 Copyright (c) 2021, AT&T Intellectual Property.
 		 All rights reserved.
 
 		 Redistribution and use in source and binary forms, with or without
@@ -51,6 +54,10 @@ module vyatta-service-gnss-v1 {
 
 		 The YANG module defines a data model for modeling the state
 		 state of Global Navigation Satellite Systems.";
+
+	revision 2021-11-10 {
+		description "Add support to configure and report an antenna delay";
+	}
 
 	revision 2021-08-15 {
 		description "Add support for reporting GNSS survey status";
@@ -159,6 +166,34 @@ module vyatta-service-gnss-v1 {
 		if-feature gnss;
 
 		container gnss {
+			configd:help "Configuration for GNSS devices";
+			description "Contains the configuration and status for
+				     all the GNSS devices in the system.";
+
+			list instance {
+				configd:help "Configuration for a GNSS device";
+				description "Contains the configuration nodes for
+					     a GNSS device.";
+				key "instance-number";
+
+				leaf instance-number {
+					type uint16;
+					description "The instance number of the GNSS device.";
+				}
+
+				leaf antenna-delay {
+					type uint32 {
+						range 0..25000;
+					}
+					configd:help "Antenna delay (in nanoseconds)";
+					description "The antenna delay associated with the GNSS
+						     device. Typically used to compensate for
+						     cable and splitter delays.";
+					default 0;
+					units "nanoseconds";
+				}
+			}
+
 			container state {
 				description "Contains the status of all the GNSS receivers";
 				config false;
@@ -167,6 +202,12 @@ module vyatta-service-gnss-v1 {
 				list instance-list {
 					description "Status from one or more GNSS receivers";
 					key "instance-number";
+
+					leaf antenna-delay {
+						description "Reports the configured antenna delay for the GNSS receiver";
+						type uint32;
+						units "nanoseconds";
+					}
 
 					leaf antenna-status {
 						description "Reports the current antenna status of the GNSS receiver";

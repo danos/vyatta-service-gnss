@@ -195,6 +195,18 @@ def dpll_get_timing_state():
     return timing_state
 
 
+def checksum(command):
+    """
+    Calculate the UBX checksum for a given command
+    """
+    ck_a = 0
+    ck_b = 0
+    for b in command[2:]:
+        ck_a += b
+        ck_b += ck_a
+    return [ ck_a % 256, ck_b % 256  ]
+
+
 class _UbloxGNSS(GNSS):
     """
     ublox GNSS device support for the S9500 30XS platform.
@@ -223,6 +235,7 @@ class _UbloxGNSS(GNSS):
         self.survey_status = None
         self.survey_observations = None
         self.survey_precision = None
+        self.antenna_delay = 0
 
         syslog.openlog("vyatta-gnssd")
 
@@ -326,6 +339,40 @@ class _UbloxGNSS(GNSS):
         self.enabled = False
         return True
 
+    def set_antenna_delay(self, delay):
+        """
+        Set the antenna delay using the TimePulse2 command.
+        Must do this after configure_gnss or the configured
+        delay will be overwritten.
+        """
+        # UBX-CFG-TIMEPULSE
+        # delay = 0 ns, RF group delay = 0 ns,
+        # period = 1Hz, period (locked) = 10MHz,
+        # pulseLen = 0, pulseLen (locked) = 50%,
+        # active, lockGnssFreq, lockedOtherSet, isFreq,
+        # alignToTow, polarity, gridUtcGnss = GPS, syncMode = 0
+        cmd = array.array('B', [0xB5, 0x62, 0x06, 0x31, 0x20, 0x00, 0x01, 0x01,
+                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+                                0x00, 0x00, 0x80, 0x96, 0x98, 0x00, 0x00, 0x00,
+                                0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00,
+                                0x00, 0x00, 0xEF, 0x00, 0x00, 0x00 ])
+
+        # Insert the antenna delay in little endian
+        cmd[10] = delay & 0xff
+        cmd[11] = (delay >> 8) & 0xff
+
+        # Calculate and append the command checksum
+        cmd += array.array('B', checksum(cmd))
+
+        usb_dev = GPSUSB()
+        usb_dev._gps_set(cmd)
+
+        self.antenna_delay = delay
+        return True
+
+    def get_antenna_delay(self):
+        return self.antenna_delay
+
     def get_status(self):
         """
         Get the status of ublox GNSS device.
@@ -345,6 +392,7 @@ class _UbloxGNSS(GNSS):
 
         status = {'instance-number': self.get_instance(),
                   'antenna-status': antenna_status,
+                  'antenna-delay': self.antenna_delay,
                   'enabled': self.enabled,
                   'system': 'gps-system',
                   'tracking-status': tracking_status}

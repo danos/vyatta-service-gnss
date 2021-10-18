@@ -4,7 +4,7 @@
 #export DH_VERBOSE=1
 
 %:
-	dh $@ --with=yang --with=python3,systemd
+	dh $@ --with=yang --with=python3,systemd,vci
 
 override_dh_auto_test:
 	python3 -m unittest unittests

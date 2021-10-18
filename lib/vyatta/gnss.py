@@ -51,3 +51,15 @@ class GNSS(ABC):
         Start the GNSS device.
         """
         return True
+
+    def set_antenna_delay(self, delay):
+        """
+        Set the antenna propagation delay in nanoseconds for the GNSS device.
+        """
+        return False
+
+    def get_antenna_delay(self):
+        """
+        Get the antenna propagation delay in nanoseconds for the GNSS device.
+        """
+        return 0

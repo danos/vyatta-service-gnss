@@ -12,9 +12,13 @@ A small daemon to monitor and control GNSS devices.
 import importlib
 import os
 import select
+import signal
 import sys
 import systemd.daemon
+import vci
 import zmq
+
+from vyatta import configd
 
 
 class VyattaGnssDaemon:
@@ -30,6 +34,15 @@ class VyattaGnssDaemon:
     REP_ENDPOINT = "ipc:///tmp/gnssd_rep.socket"
 
     def __init__(self):
+        def sigusr1_handler(signum, frame):
+            """
+            Force poller to exit early
+            """
+            raise InterruptedError()
+
+        # Use SIGUSR1 to trigger a configuration update
+        signal.signal(signal.SIGUSR1, sigusr1_handler)
+
         # Create a PUB socket
         self.ctx = zmq.Context.instance()
         self.pub_socket = self.ctx.socket(zmq.PUB)
@@ -49,6 +62,7 @@ class VyattaGnssDaemon:
         self.instances = []
         self.load_gnss_modules()
         self.running = True
+        self.update_configurations()
 
     def register(self, instance):
         """
@@ -192,14 +206,54 @@ class VyattaGnssDaemon:
             poller.register(fd, evmask)
 
         while self.running:
-            events = poller.poll(self.POLL_TIMEOUT)
+            try:
+                events = poller.poll(self.POLL_TIMEOUT)
+            except InterruptedError:
+                events = []
+
             for (fd, _) in events:
                 if fd == self.get_rep_fd():
                     self.handle_rep_fd_event()
                 else:
                     raise Exception("Unexpected event on fd {}".format(fd))
             if not events:
+                self.update_configurations()
                 self.do_update_hardware_status()
+
+    def update_configurations(self):
+        SERVICE = 'vyatta-services-v1:service'
+        SERVICE_GNSS = 'vyatta-service-gnss-v1:gnss'
+
+        def get_config(instance_number, instances):
+            for instance in instances:
+                if instance['instance-number'] == instance_number:
+                    return instance
+            return None
+
+        try:
+            component = vci.Component("net.vyatta.vci.service.gnss") \
+                            .model(vci.Model("net.vyatta.vci.service.gnss.v1"))
+            client = component.client()
+            state = client.state_by_model('net.vyatta.vci.service.gnss.v1')
+            configs = state[SERVICE][SERVICE_GNSS]['instance']
+        except vci.Exception:
+            print('Unable to connect to VCI service')
+            return
+        except KeyError:
+            print('Unable to find configuration state in VCI')
+            return
+
+        for the_instance in self.instances:
+            antenna_delay = the_instance.get_antenna_delay()
+            instance_number = the_instance.get_instance()
+
+            config = get_config(instance_number, configs)
+            if not config:
+                continue
+
+            antenna_delay = config['antenna-delay']
+            if the_instance.get_antenna_delay() != antenna_delay:
+                the_instance.set_antenna_delay(antenna_delay)
 
 
 if __name__ == "__main__":

@@ -44,6 +44,9 @@ def show_instance(instance):
     if 'antenna-status' in instance:
         antenna_status = instance['antenna-status']
         print('\tantenna-status:', "open (or passive antenna)" if antenna_status == 'open' else antenna_status)
+    if 'antenna-delay' in instance:
+        antenna_delay = instance['antenna-delay']
+        print('\tantenna-delay:', antenna_delay, 'ns')
     if 'tracking-status' in instance:
         print('\ttracking-status:', instance['tracking-status'])
     if 'system' in instance:
