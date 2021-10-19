@@ -1,3 +1,15 @@
+vyatta-service-gnss (1.10) unstable; urgency=medium
+
+  [ Gavin Shearer ]
+  * Don't show survey-precision if no observations performed
+
+  [ Charles (Chas) Williams ]
+  * ublox: handle data conversion failures (Bugfix: VRVDR-56036)
+  * ublox: fix antenna state reporting (Bugfix: VRVDR-56039)
+  * ublox: handle survey in failures (Bugfix: VRVDR-56119)
+
+ -- Charles (Chas) Williams <ciwillia@vyatta.att-mail.com>  Tue, 19 Oct 2021 10:31:39 -0400
+
 vyatta-service-gnss (1.9) unstable; urgency=medium
 
   * yang: add GNSS survey reporting (Bugfix: VRVDR-55909)
