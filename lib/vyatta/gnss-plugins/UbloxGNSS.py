@@ -296,20 +296,42 @@ class _UbloxGNSS(GNSS):
             """
             Apply the default configuration from UfiSpace's BSP
             """
+
+            def disable_GSV(usb_dev):
+                """
+                Disable GSV NMEA sentences
+                """
+                cmd = array.array('B', [0xb5, 0x62, 0x06, 0x01, 0x08, 0x00,
+                                        0xf0, 0x03, 0x00, 0x00, 0x00, 0x00,
+                                        0x00, 0x00])
+                cmd += array.array('B', checksum(cmd))
+                usb_dev._gps_set(cmd)
+
+            def enable_GSV(usb_dev):
+                """
+                Enable GSV NMEA sentences
+                """
+                cmd = array.array('B', [0xb5, 0x62, 0x06, 0x01, 0x08, 0x00,
+                                        0xf0, 0x03, 0x00, 0x00, 0x00, 0x01,
+                                        0x00, 0x01])
+                cmd += array.array('B', checksum(cmd))
+                usb_dev._gps_set(cmd)
+
+            def enable_RMC(usb_dev):
+                """
+                Eisable RMC NMEA sentences
+                """
+                cmd = array.array('B', [0xb5, 0x62, 0x06, 0x01, 0x08, 0x00,
+                                        0xf0, 0x04, 0x01, 0x00, 0x00, 0x01,
+                                        0x01, 0x01])
+                cmd += array.array('B', checksum(cmd))
+                usb_dev._gps_set(cmd)
+
             usb_dev.enable()
+            disable_GSV(usb_dev)
             usb_dev.configureUartTod()
-
-            # Enable GSV sentences
-            cmd = array.array('B', [0xb5, 0x62, 0x06, 0x01, 0x08, 0x00,
-                                    0xf0, 0x03, 0x00, 0x00, 0x00, 0x01,
-                                    0x00, 0x01, 0x04, 0x3c])
-            usb_write(usb_dev, cmd)
-
-            # Enable RMC sentences
-            cmd = array.array('B', [0xb5, 0x62, 0x06, 0x01, 0x08, 0x00,
-                                    0xf0, 0x04, 0x01, 0x00, 0x00, 0x01,
-                                    0x01, 0x01, 0x07, 0x4b])
-            usb_write(usb_dev, cmd)
+            enable_GSV(usb_dev)
+            enable_RMC(usb_dev)
 
         def start_survey(usb_dev):
             """
