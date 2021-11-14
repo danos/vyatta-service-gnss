@@ -16,6 +16,7 @@ import array
 import datetime
 import json
 import math
+import os
 import time
 import syslog
 import usb.core
@@ -207,6 +208,47 @@ def checksum(command):
     return [ ck_a % 256, ck_b % 256  ]
 
 
+def platform_delay():
+    """
+    It is typical for a platform to have some internal delay
+    that is inherent to the hardware.
+    """
+    if os.path.exists('/run/vyatta/platform/ufi.s9500-30xs'):
+        return 50
+
+    return 0
+
+
+def ubx_cfg_tp5(usb_dev, delay):
+    """
+    Set the antenna delay using the time pulse parameters.
+    Must do this after configureUartTod or the configured
+    delay will be overwritten.
+    """
+    # UBX-CFG-TP5
+    # delay = 0 ns, RF group delay = 0 ns,
+    # period = 1Hz, period (locked) = 10MHz,
+    # pulseLen = 0, pulseLen (locked) = 50%,
+    # active, lockGnssFreq, lockedOtherSet, isFreq,
+    # alignToTow, polarity, gridUtcGnss = GPS, syncMode = 0
+    cmd = array.array('B', [0xB5, 0x62, 0x06, 0x31, 0x20, 0x00, 0x01, 0x01,
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+                            0x00, 0x00, 0x80, 0x96, 0x98, 0x00, 0x00, 0x00,
+                            0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00,
+                            0x00, 0x00, 0xEF, 0x00, 0x00, 0x00 ])
+
+    delay += platform_delay()
+
+    # Insert the antenna delay in little endian
+    cmd[10] = delay & 0xff
+    cmd[11] = (delay >> 8) & 0xff
+
+    # Calculate and append the command checksum
+    cmd += array.array('B', checksum(cmd))
+
+    usb_dev._gps_set(cmd)
+
+
 class _UbloxGNSS(GNSS):
     """
     ublox GNSS device support for the S9500 30XS platform.
@@ -214,11 +256,6 @@ class _UbloxGNSS(GNSS):
     MAX_RECORDS = 20
 
     def __init__(self):
-
-        # The GNSS might be stopped, ensure sure it is started
-        # so that configuration will succeed.
-        self.start()
-
         self.have_time = False
         self.gpstime = None
         self.have_position = False
@@ -238,6 +275,10 @@ class _UbloxGNSS(GNSS):
         self.antenna_delay = 0
 
         syslog.openlog("vyatta-gnssd")
+
+        # The GNSS might be stopped, ensure sure it is started
+        # so that configuration will succeed.
+        self.start()
 
     def start(self):
         """
@@ -291,6 +332,7 @@ class _UbloxGNSS(GNSS):
         usb_dev = GPSUSB()
         controlled_start(usb_dev)
         configure_gnss(usb_dev)
+        ubx_cfg_tp5(usb_dev, self.antenna_delay)
         start_survey(usb_dev)
 
         self.enabled = True
@@ -345,27 +387,8 @@ class _UbloxGNSS(GNSS):
         Must do this after configure_gnss or the configured
         delay will be overwritten.
         """
-        # UBX-CFG-TIMEPULSE
-        # delay = 0 ns, RF group delay = 0 ns,
-        # period = 1Hz, period (locked) = 10MHz,
-        # pulseLen = 0, pulseLen (locked) = 50%,
-        # active, lockGnssFreq, lockedOtherSet, isFreq,
-        # alignToTow, polarity, gridUtcGnss = GPS, syncMode = 0
-        cmd = array.array('B', [0xB5, 0x62, 0x06, 0x31, 0x20, 0x00, 0x01, 0x01,
-                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
-                                0x00, 0x00, 0x80, 0x96, 0x98, 0x00, 0x00, 0x00,
-                                0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00,
-                                0x00, 0x00, 0xEF, 0x00, 0x00, 0x00 ])
-
-        # Insert the antenna delay in little endian
-        cmd[10] = delay & 0xff
-        cmd[11] = (delay >> 8) & 0xff
-
-        # Calculate and append the command checksum
-        cmd += array.array('B', checksum(cmd))
-
         usb_dev = GPSUSB()
-        usb_dev._gps_set(cmd)
+        ubx_cfg_tp5(usb_dev, delay)
 
         self.antenna_delay = delay
         return True
