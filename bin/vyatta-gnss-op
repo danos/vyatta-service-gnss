@@ -26,7 +26,7 @@ def show_satellites(satellites):
     print('\tsatellites:', no_satellites)
     if no_satellites:
         print('\t\tPRN  Elevation  Azimuth  SNR')
-        for satellite in satellites:
+        for satellite in sorted(satellites, key=lambda x: int(x['PRN'])):
             prn = satellite['PRN']
             snr = satellite.get('SNR', '-')
             elevation = satellite.get('elevation', '-')
