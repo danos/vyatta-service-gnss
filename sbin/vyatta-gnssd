@@ -62,6 +62,7 @@ class VyattaGnssDaemon:
         self.instances = []
         self.load_gnss_modules()
         self.running = True
+        self.client = None
         self.update_configurations()
 
     def register(self, instance):
@@ -231,12 +232,12 @@ class VyattaGnssDaemon:
             return None
 
         try:
-            component = vci.Component("net.vyatta.vci.service.gnss") \
-                            .model(vci.Model("net.vyatta.vci.service.gnss.v1"))
-            client = component.client()
-            state = client.state_by_model('net.vyatta.vci.service.gnss.v1')
+            if self.client is None:
+                self.client = vci.Client()
+            state = self.client.state_by_model('net.vyatta.vci.service.gnss.v1')
             configs = state[SERVICE][SERVICE_GNSS]['instance']
         except vci.Exception:
+            self.client = None
             print('Unable to connect to VCI service')
             return
         except KeyError:
