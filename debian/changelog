@@ -1,3 +1,9 @@
+vyatta-service-gnss (1.11) unstable; urgency=medium
+
+  * ublox: use UBX-NAV-SAT to report satellites (Bugfix: VRVDR-56560)
+
+ -- Charles (Chas) Williams <ciwillia@vyatta.att-mail.com>  Mon, 22 Nov 2021 15:45:20 -0500
+
 vyatta-service-gnss (1.10) unstable; urgency=medium
 
   [ Gavin Shearer ]
