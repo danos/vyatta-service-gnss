@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
-# Copyright (c) 2021, AT&T Intellectual Property.
-# All rights reserved.
+# Copyright (c) 2021, Ciena Corporation. All rights reserved.
+# Copyright (c) 2021, AT&T Intellectual Property. All rights reserved.
 #
 # SPDX-License-Identifier: LGPL-2.1-only
 
@@ -196,6 +196,28 @@ def dpll_get_timing_state():
     return timing_state
 
 
+def u4(bytes):
+    """
+    Convert a little endian Ublox U4 type to a native integer
+    """
+    if len(bytes) != 4:
+        raise ValueError('Need exactly 4 bytes')
+    return int(bytes[0]) + \
+        int(bytes[1]) * 256 + \
+        int(bytes[2]) * 65536 + \
+        int(bytes[3]) * 16777216
+
+
+def i4(bytes):
+    """
+    Convert a little endian Ublox I4 type to a native integer
+    """
+    value = u4(bytes)
+    if value > 0x7fffffff:
+        value = value - 0x100000000
+    return value
+
+
 def checksum(command):
     """
     Calculate the UBX checksum for a given command
@@ -256,13 +278,9 @@ class _UbloxGNSS(GNSS):
     MAX_RECORDS = 20
 
     def __init__(self):
-        self.have_time = False
         self.gpstime = None
-        self.have_position = False
         self.latitude = None
         self.longitude = None
-        self.have_satellites = False
-        self.GSV_decoded = 0
         self.satellites = []
         self.enabled = True
         self.in_holdover = False
@@ -307,31 +325,20 @@ class _UbloxGNSS(GNSS):
                 cmd += array.array('B', checksum(cmd))
                 usb_dev._gps_set(cmd)
 
-            def enable_GSV(usb_dev):
+            def disable_RMC(usb_dev):
                 """
-                Enable GSV NMEA sentences
-                """
-                cmd = array.array('B', [0xb5, 0x62, 0x06, 0x01, 0x08, 0x00,
-                                        0xf0, 0x03, 0x00, 0x00, 0x00, 0x01,
-                                        0x00, 0x01])
-                cmd += array.array('B', checksum(cmd))
-                usb_dev._gps_set(cmd)
-
-            def enable_RMC(usb_dev):
-                """
-                Eisable RMC NMEA sentences
+                Disable RMC NMEA sentences
                 """
                 cmd = array.array('B', [0xb5, 0x62, 0x06, 0x01, 0x08, 0x00,
-                                        0xf0, 0x04, 0x01, 0x00, 0x00, 0x01,
-                                        0x01, 0x01])
+                                        0xf0, 0x04, 0x00, 0x00, 0x00, 0x00,
+                                        0x00, 0x00])
                 cmd += array.array('B', checksum(cmd))
                 usb_dev._gps_set(cmd)
 
             usb_dev.enable()
             disable_GSV(usb_dev)
             usb_dev.configureUartTod()
-            enable_GSV(usb_dev)
-            enable_RMC(usb_dev)
+            disable_RMC(usb_dev)
 
         def start_survey(usb_dev):
             """
@@ -447,16 +454,15 @@ class _UbloxGNSS(GNSS):
         if self.enabled:
             self.fetch_gnss_data()
 
-            if self.have_time and self.gpstime:
+            if self.gpstime:
                 status['time'] = self.gpstime
 
-            if self.have_position:
-                if self.latitude:
-                    status['latitude'] = str(self.latitude)
-                if self.longitude:
-                    status['longitude'] = str(self.longitude)
+            if self.latitude:
+                status['latitude'] = str(self.latitude)
+            if self.longitude:
+                status['longitude'] = str(self.longitude)
 
-            if self.have_satellites:
+            if len(self.satellites):
                 status['satellites-in-view'] = self.satellites
 
             if self.survey_status:
@@ -467,132 +473,91 @@ class _UbloxGNSS(GNSS):
 
         return status
 
-    def decode_gsv(self, fields):
+    def fetch_ubx_nav_sat(self, usb_dev):
         """
-        Decode a GSV NMEA sentence
+        Issue UBX-NAV-SAT and reporting the visible satellites.
+        See page 337 of the u-blox 8 / u-blox M8 Receiver description
+        """
+        self.satellites = []
 
-        $GPGSV,3,1,12,01,22,253,23,07,04,268,19,08,80,281,12,10,51,072,*73
-        $GPGSV,3,2,12,14,08,327,,16,16,176,12,21,48,259,23,22,14,203,20*75
-        $GPGSV,3,3,12,23,23,046,,27,61,125,10,30,09,302,14,32,11,116,*74
-        """
-        if self.have_satellites:
+        cmd = array.array('B', [0xb5, 0x62, 0x01, 0x35, 0x0, 0x0])
+        cmd += array.array('B', checksum(cmd))
+
+        try:
+            response = usb_dev._gps_get(cmd)
+        except usb.USBError:
             return
 
-        num_sentences = int(fields[1])
-        ith_sentence = int(fields[2])
-
-        if ith_sentence == 1:
-            self.GSV_decoded = 0
-            self.satellites = []
-
-        self.GSV_decoded = self.GSV_decoded + 1
-
-        for index in range(4, len(fields), 4):
+        # Skip 6 bytes of header and 8 bytes of payload
+        for block_offset in range(14, len(response) - 2, 12):
             satellite = {}
             satellite['instance-number'] = len(self.satellites)
-            satellite['PRN'] = fields[index]
 
-            elevation = fields[index + 1]
-            if elevation != '':
-                satellite['elevation'] = elevation
-            azimuth = fields[index + 2]
-            if azimuth != '':
-                satellite['azimuth'] = azimuth
-            snr = fields[index + 3]
-            if snr != '':
+            # svId
+            prn = response[block_offset + 1]
+            satellite['PRN'] = prn
+
+            # C/N0
+            snr = int(response[block_offset + 2])
+            if snr > 0:
                 satellite['SNR'] = snr
-            self.satellites.append(satellite)
 
-        if num_sentences == self.GSV_decoded:
-            self.have_satellites = True
+            # Azimuth/Elevation
+            satellite['azimuth'] = int(response[block_offset + 4])
+            satellite['elevation'] = int(response[block_offset + 3])
 
-    def decode_rmc(self, fields):
+            # svUsed from flags
+            sv_used = (response[block_offset + 8] >> 3) & 0x1
+
+            if sv_used:
+                self.satellites.append(satellite)
+
+    def fetch_ubx_nav_pvt(self, usb_dev):
         """
-        Decode a RMC NMEA sentence
-
-        $GPRMC,144340.00,A,5127.30667,N,00058.67664,W,0.047,,020621,,,A*6D
+        Query time and position using UBX-NAV-PVT
         """
-        if self.have_position:
+        self.latitude = None
+        self.longitude = None
+        self.gpstime = None
+
+        cmd = array.array('B', [0xb5, 0x62, 0x01, 0x07, 0x0, 0x0])
+        cmd += array.array('B', checksum(cmd))
+
+        try:
+            response = usb_dev._gps_get(cmd)
+            if len(response) != 100:
+                return
+        except usb.USBError:
             return
 
-        # Is the position valid?
-        if fields[3] == '' or fields[5] == '':
-            self.have_position = True
-            self.latitude = None
-            self.longitude = None
+        longitude = i4(response[30:34]) / 1.0e7
+        latitude = i4(response[34:38]) / 1.0e7
+        gnssFixOK = int(response[27]) & 0x1
+
+        if gnssFixOK:
+            self.latitude = longitude
+            self.longitude = latitude
+
+        year = response[10] + response[11] * 256
+        month = int(response[12])
+        day = int(response[13])
+        hour = int(response[14])
+        mins = int(response[15])
+        secs = int(response[16])
+
+        validDate = int(response[17]) & 0x1
+        validTime = int(response[17]) & 0x2
+
+        if validDate and validTime:
+            utc = datetime.datetime(year, month, day,
+                                    hour=hour, minute=mins, second=secs)
+            self.gpstime = int(utc.timestamp())
             return
-
-        degrees = float(fields[3][0:2])
-        minutes = float(fields[3][2:])
-        latitude = degrees + minutes / 60.0
-        if fields[4] == 'S':
-            latitude = -latitude
-        degrees = float(fields[5][0:3])
-        minutes = float(fields[5][3:])
-        longitude = degrees + minutes / 60.0
-        if fields[6] == 'W':
-            longitude = -longitude
-        self.longitude = longitude
-        self.latitude = latitude
-        self.have_position = True
-
-    def decode_zda(self, fields):
-        """
-        Decode a ZDA NMEA sentence
-
-        $GPZDA,144340.00,02,06,2021,00,00*65
-        """
-        if self.have_time:
-            return
-
-        # Is the time valid?
-        if fields[1] == '' or fields[2] == '' or \
-           fields[3] == '' or fields[4] == '':
-            self.have_time = True
-            self.gpstime = None
-            return
-
-        hour = int(fields[1][0:2])
-        mins = int(fields[1][2:4])
-        secs = int(fields[1][4:6])
-        day = int(fields[2])
-        month = int(fields[3])
-        year = int(fields[4])
-        utc = datetime.datetime(year, month, day,
-                                hour=hour, minute=mins, second=secs)
-        self.gpstime = int(utc.timestamp())
-        self.have_time = True
-
-    def decode_sentence(self, sentence):
-        """
-        Break a NMEA into fields and send to the appropriate parser.
-        """
-        fields = sentence.rstrip().rpartition('*')[0].split(',')
-
-        if fields[0].find('RMC') > 0:
-            self.decode_rmc(fields)
-
-        if fields[0].find('ZDA') > 0:
-            self.decode_zda(fields)
-
-        if fields[0].find('GPGSV') > 0:
-            self.decode_gsv(fields)
 
     def fetch_svin(self, usb_dev):
         """
         Issue a UBX-CFG-SVIN to check the current status of survey-in.
         """
-        def u4(bytes):
-            """
-            Convert a little endian Ublox U4 type to a native integer
-            """
-            if len(bytes) != 4:
-                raise ValueError('Need exactly 4 bytes')
-            return int(bytes[0]) + \
-                int(bytes[1]) * 256 + \
-                int(bytes[2]) * 65536 + \
-                int(bytes[3]) * 16777216
-
         cmd = array.array('B', [0xb5, 0x62, 0x0d, 0x04, 0x00, 0x00,
                                 0x11, 0x40])
 
@@ -628,49 +593,9 @@ class _UbloxGNSS(GNSS):
         """
         Poll the GNSS data stream for NMEA sentences.
         """
-        POLL_TIMEOUT = 1000     # 1s
-
         usb_dev = GPSUSB()
-        cfg = usb_dev.usb_dev.get_active_configuration()
-        intf = cfg[(1, 0)]
-
-        endpoint = usb.util.find_descriptor(
-                   intf,
-                   # match the first IN endpoint
-                   custom_match=lambda e:
-                   usb.util.endpoint_direction(e.bEndpointAddress) ==
-                   usb.util.ENDPOINT_IN)
-        if endpoint is None:
-            raise ValueError('EndpointAddress of USB device not found')
-
-        self.have_time = False
-        self.have_position = False
-        self.have_satellites = False
-        self.GSV_decoded = 0
-
-        records_read = 0
-
-        read = True
-        while read:
-            try:
-                resp = endpoint.read(POLL_TIMEOUT)
-                try:
-                    self.decode_sentence(resp.tobytes().decode('utf-8'))
-                except UnicodeDecodeError:
-                    continue
-
-                if self.have_time and \
-                   self.have_position and \
-                   self.have_satellites:
-                    read = False
-
-                records_read += 1
-                if records_read > self.MAX_RECORDS:
-                    read = False
-            except usb.USBError:
-                # Continuous read until timeout
-                pass
-
+        self.fetch_ubx_nav_pvt(usb_dev)
+        self.fetch_ubx_nav_sat(usb_dev)
         self.fetch_svin(usb_dev)
 
     def update_hardware_status(self):
