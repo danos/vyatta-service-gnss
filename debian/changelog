@@ -1,3 +1,12 @@
+vyatta-service-gnss (1.12) unstable; urgency=medium
+
+  * gnss: support antenna delay configuration (Bugfix: VRVDR-56166)
+  * ublox: add platform specific antenna cable delay (Bugfix: VRVDR-56204)
+  * ublox: disable GSV during configuration (Bugfix: VRVDR-56166)
+  * gnssd: create vci client once (Bugfix: VRVDR-56598)
+
+ -- Charles (Chas) Williams <ciwillia@vyatta.att-mail.com>  Tue, 23 Nov 2021 13:06:19 -0500
+
 vyatta-service-gnss (1.11) unstable; urgency=medium
 
   * ublox: use UBX-NAV-SAT to report satellites (Bugfix: VRVDR-56560)
