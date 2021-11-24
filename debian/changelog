@@ -1,3 +1,9 @@
+vyatta-service-gnss (1.13) unstable; urgency=medium
+
+  * Fix vci emulation for unit tests (Bugfix: VRVDR-56608)
+
+ -- Charles (Chas) Williams <ciwillia@vyatta.att-mail.com>  Wed, 24 Nov 2021 10:39:14 -0500
+
 vyatta-service-gnss (1.12) unstable; urgency=medium
 
   * gnss: support antenna delay configuration (Bugfix: VRVDR-56166)
