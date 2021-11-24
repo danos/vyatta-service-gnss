@@ -14,6 +14,6 @@ class Exception(Exception):
     def __init__(self):
         pass
 
-class Component:
-    def __init__(self, name):
+class Client:
+    def __init__(self):
         raise Exception()
